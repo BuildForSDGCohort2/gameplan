@@ -182,7 +182,29 @@ def mark_all_notifications_as_read():
 		doc.save(ignore_permissions=True)
 
 
+@frappe.whitelist()
+def recent_projects():
+	from frappe.query_builder.functions import Max
 
+	ProjectVisit = frappe.qb.DocType('GP Project Visit')
+	Team = frappe.qb.DocType('Team')
+	Project = frappe.qb.DocType('Team Project')
+	recent_projects = (
+		frappe.qb.from_(ProjectVisit)
+			.select(
+				ProjectVisit.project, Project.team, Project.title,
+				Team.title.as_('team_title'), Project.icon,
+				Max(ProjectVisit.last_visit).as_('last_visit')
+			)
+			.left_join(Project).on(Project.name == ProjectVisit.project)
+			.left_join(Team).on(Team.name == Project.team)
+			.groupby(ProjectVisit.project)
+			.where(ProjectVisit.user == frappe.session.user)
+			.orderby(ProjectVisit.last_visit, order=frappe.qb.desc)
+			.limit(12)
+	).run(as_dict=1)
+
+	return recent_projects
 
 
 
